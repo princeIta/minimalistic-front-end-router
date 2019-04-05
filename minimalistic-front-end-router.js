@@ -11,7 +11,7 @@ function minfredirect(redirectTo){
 
 // this object will be passed into all callbacks in minfroute.
 // it exposes all operations that you would love to be
-// carried out on routes. for now it has only the the redirect function
+// carried out in route handlerss. for now it has only the the redirect function
 // as a property. more properties can be added
 const minfrouteFunc = {}
 
@@ -32,16 +32,13 @@ const minfroute = function(path, view, ...callbacks){
 		minfrouteFunc.minfredirect = minfredirect;
 		minfviews[path] = view(minfrouteFunc);	
 	}
-	else if(typeof(view) === 'string'){
+	else{
 		minfviews[path] = view;
 	}
-    else{
-        return;
-    }
 };
 
 function minfgetView(route){
-	if(!minfviews[route]){
+	if(!(route in minfviews)){
 		try{
 			return minfgetView('*');
 		}
@@ -66,25 +63,38 @@ function minfgetView(route){
 };
 
 function minfresolveRoute(route){
-	if(minfOldRoute && minfOldRoute){ 
+	// a route may be specified to trigger a function but not change the current view.
+	// such route would have null or undefined registered as handler
+	// in such a case the registered "dummy" handler (null or undefined) should not be altered.
+	if(minfOldRoute && !((minfOldRoute in minfviews) && !minfviews[minfOldRoute])){ 
 		if(minfcontainer && minfcontainer.innerHTML){
 			minfviews[minfOldRoute] = minfcontainer.innerHTML;	
 		}else{
-			var prevViewId = document.getElementById(minfgetView(minfOldRoute).startsWith('#')
-												?minfgetView(minfOldRoute).slice(1)
-												:minfgetView(minfOldRoute));
-			prevViewId.classList.add('hidden');
+			if(!((route in minfviews) && !minfviews[route])){
+				var prevViewId = document.getElementById(minfgetView(minfOldRoute).startsWith('#')
+													?minfgetView(minfOldRoute).slice(1)
+													:minfgetView(minfOldRoute));
+				prevViewId.classList.add('hidden');
+			}
+			
 		}
 	}
 	
-	minfOldRoute = route;
-	if(minfcontainer && minfcontainer.innerHTML){
-		minfcontainer.innerHTML = minfgetView(route);	
-	}else{
-		var currentViewId = document.getElementById(minfgetView(route).startsWith('#')
-												?minfgetView(route).slice(1)
-												:minfgetView(route));
-		currentViewId.classList.remove('hidden');
+	// in case null or undefined is used for route handler.
+	// in this case they're referred to as "dummy" handlers,
+	// since they dont change views but merely carry out specific functions
+	if(!((route in minfviews) && !minfviews[route])){
+		if(minfcontainer && minfcontainer.innerHTML){
+			if(minfgetView(route)){
+				minfcontainer.innerHTML = minfgetView(route);	
+			}
+		}else{
+			var currentViewId = document.getElementById(minfgetView(route).startsWith('#')
+													?minfgetView(route).slice(1)
+													:minfgetView(route));
+			currentViewId.classList.remove('hidden');
+		}
+		minfOldRoute = route;
 	}
 
 	var callbacks = minfroutes[route] && minfroutes[route].callbacks? minfroutes[route].callbacks:''
